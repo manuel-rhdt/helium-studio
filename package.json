@@ -1,0 +1,12 @@
+{
+  "name": "helium-studio",
+  "private": true,
+  "description": "Tests for the browser-side Markdown and style code; the site itself has no build step.",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  },
+  "devDependencies": {
+    "markdown-it": "14.1.0",
+    "temml": "0.14.0"
+  }
+}

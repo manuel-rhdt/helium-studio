@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "helium-studio";
+  const STORAGE_KEY = "helium-studio:markdown";
   const AUTO_COMPILE_DELAY_MS = 1500;
   const $ = (id) => document.getElementById(id);
 
@@ -21,10 +21,12 @@
   const state = {
     name: saved.name || "Untitled Document",
     source: typeof saved.source === "string" ? saved.source : window.HELIUM_EXAMPLE,
+    style: HeliumStyles.normalize(saved.style),
     autoCompile: saved.autoCompile ?? true,
     layout: saved.layout || "split",
     editorWidth: saved.editorWidth || null,
-    showFiles: saved.showFiles ?? true,
+    showSidebar: saved.showSidebar ?? true,
+    sideTab: saved.sideTab === "outline" ? "outline" : "style",
     zoom: saved.zoom || "fit-width",
   };
   let saveTimer;
@@ -41,13 +43,12 @@
 
   // ---------- editor ----------
 
+  // The editor shows the Markdown source, or (read-only) the HTML document generated from it.
   const editor = CodeMirror($("editor-host"), {
     value: state.source,
-    mode: "htmlmixed",
+    mode: "markdown",
     lineNumbers: true,
     lineWrapping: true,
-    autoCloseTags: true,
-    matchTags: { bothTags: true },
     styleActiveLine: true,
     indentUnit: 2,
     tabSize: 2,
@@ -59,18 +60,58 @@
       Tab: (cm) => cm.execCommand(cm.somethingSelected() ? "indentMore" : "insertSoftTab"),
     },
   });
+  const markdownDoc = editor.getDoc();
+  const htmlDoc = CodeMirror.Doc("", "htmlmixed");
+  let sourceView = "markdown";
 
+  function documentTitle() {
+    return HeliumMarkdown.headings(markdownDoc.getValue())[0]?.text || state.name;
+  }
+
+  // The complete HTML document that is sent to helium.
+  function buildHtml() {
+    return HeliumStyles.buildDocument(HeliumMarkdown.render(markdownDoc.getValue()), state.style, documentTitle());
+  }
+
+  function refreshHtmlView() {
+    if (sourceView !== "html") return;
+    const scroll = editor.getScrollInfo();
+    htmlDoc.setValue(buildHtml());
+    editor.scrollTo(scroll.left, scroll.top);
+  }
+
+  // called whenever the Markdown or the style settings changed
   let autoTimer;
-  editor.on("change", () => {
-    state.source = editor.getValue();
+  function contentChanged() {
     persist();
-    updateOutline();
+    refreshHtmlView();
     $("pdf-viewer").classList.add("stale");
     if (state.autoCompile) {
       clearTimeout(autoTimer);
       autoTimer = setTimeout(compile, AUTO_COMPILE_DELAY_MS);
     }
+  }
+
+  markdownDoc.on("change", () => {
+    state.source = markdownDoc.getValue();
+    updateOutline();
+    contentChanged();
   });
+
+  function setSourceView(view) {
+    sourceView = view;
+    for (const b of document.querySelectorAll(".source-switch button")) {
+      b.classList.toggle("active", b.dataset.source === view);
+    }
+    const isHtml = view === "html";
+    $("source-tab").textContent = isHtml ? "document.html" : "main.md";
+    $("source-hint").textContent = isHtml ? "Generated from your Markdown and Style · read-only" : "Ctrl/⌘ + S to recompile";
+    editor.setOption("readOnly", isHtml);
+    editor.swapDoc(isHtml ? htmlDoc : markdownDoc);
+    if (isHtml) refreshHtmlView();
+    editor.refresh();
+  }
+  for (const b of document.querySelectorAll(".source-switch button")) b.onclick = () => setSourceView(b.dataset.source);
 
   document.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "Enter")) {
@@ -79,33 +120,100 @@
     }
   });
 
-  // ---------- outline ----------
+  // ---------- sidebar ----------
 
   function updateOutline() {
     const list = $("outline");
     list.textContent = "";
-    const re = /<h([1-3])\b[^>]*>([\s\S]*?)<\/h\1>/gi;
-    const text = editor.getValue();
-    let match;
-    while ((match = re.exec(text))) {
-      const title = match[2].replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
-      if (!title) continue;
-      const line = editor.posFromIndex(match.index).line;
+    for (const heading of HeliumMarkdown.headings(markdownDoc.getValue())) {
+      if (heading.level > 3 || !heading.text) continue;
       const li = document.createElement("li");
-      li.className = `level-${match[1]}`;
-      li.textContent = title;
-      li.title = title;
+      li.className = `level-${heading.level}`;
+      li.textContent = heading.text;
+      li.title = heading.text;
       li.onclick = () => {
+        if (sourceView !== "markdown") setSourceView("markdown");
         editor.focus();
-        editor.setCursor({ line, ch: 0 });
-        editor.scrollIntoView({ line, ch: 0 }, 80);
+        editor.setCursor({ line: heading.line, ch: 0 });
+        editor.scrollIntoView({ line: heading.line, ch: 0 }, 80);
       };
       list.appendChild(li);
     }
-    if (!list.children.length) {
-      list.innerHTML = '<li class="empty">No headings</li>';
+    if (!list.children.length) list.innerHTML = '<li class="empty">No headings</li>';
+  }
+
+  function setSideTab(tab) {
+    state.sideTab = tab;
+    for (const b of document.querySelectorAll("[data-side-tab]")) b.classList.toggle("active", b.dataset.sideTab === tab);
+    $("style-panel").hidden = tab !== "style";
+    $("outline-panel").hidden = tab !== "outline";
+    persist();
+  }
+  for (const b of document.querySelectorAll("[data-side-tab]")) b.onclick = () => setSideTab(b.dataset.sideTab);
+
+  // The style panel is generated from the schema in styles.js.
+  const styleControls = [];
+  function buildStylePanel() {
+    const panel = $("style-controls");
+    panel.textContent = "";
+    for (const section of HeliumStyles.SECTIONS) {
+      const details = document.createElement("details");
+      details.open = section.id === "page" || section.id === "body";
+      const summary = document.createElement("summary");
+      summary.textContent = section.title;
+      details.appendChild(summary);
+
+      for (const control of section.controls) {
+        const row = document.createElement("label");
+        row.className = "control";
+        const label = document.createElement("span");
+        label.textContent = control.label;
+        row.appendChild(label);
+
+        let input;
+        const apply = (value) => {
+          state.style[section.id][control.key] = value;
+          contentChanged();
+        };
+        if (control.type === "select") {
+          input = document.createElement("select");
+          for (const [value, text] of control.options) input.add(new Option(text, value));
+          input.onchange = () => apply(input.value);
+        } else if (control.type === "color") {
+          input = document.createElement("input");
+          input.type = "color";
+          input.oninput = () => apply(input.value);
+        } else {
+          input = document.createElement("input");
+          input.type = "number";
+          input.min = control.min;
+          input.max = control.max;
+          input.step = control.step;
+          input.oninput = () => {
+            if (Number.isFinite(input.valueAsNumber)) apply(Math.min(control.max, Math.max(control.min, input.valueAsNumber)));
+          };
+          input.onblur = () => (input.value = state.style[section.id][control.key]);
+        }
+        const show = () => (input.value = state.style[section.id][control.key]);
+        show();
+        styleControls.push(show);
+
+        const field = document.createElement("span");
+        field.className = "field";
+        field.appendChild(input);
+        if (control.unit) field.append(` ${control.unit}`);
+        row.appendChild(field);
+        details.appendChild(row);
+      }
+      panel.appendChild(details);
     }
   }
+
+  $("reset-style").onclick = () => {
+    state.style = HeliumStyles.defaults();
+    for (const show of styleControls) show();
+    contentChanged();
+  };
 
   // ---------- compile ----------
 
@@ -124,13 +232,12 @@
     $("recompile-label").textContent = "Compiling…";
     setStatus("");
 
-    const source = editor.getValue();
     let result;
     try {
       const res = await fetch("/api/render", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ html: source }),
+        body: JSON.stringify({ html: buildHtml() }),
       });
       const body = await res.json().catch(() => ({ error: `Server responded with ${res.status}` }));
       result = { ok: res.ok && body.pdf, ...body };
@@ -316,8 +423,8 @@
   document.title = `${state.name} - Helium Studio`;
 
   $("reset-doc").onclick = () => {
-    if (editor.getValue() !== window.HELIUM_EXAMPLE && !confirm("Replace the current document with the example?")) return;
-    editor.setValue(window.HELIUM_EXAMPLE);
+    if (markdownDoc.getValue() !== window.HELIUM_EXAMPLE && !confirm("Replace the current document with the example?")) return;
+    markdownDoc.setValue(window.HELIUM_EXAMPLE);
     compile();
   };
 
@@ -357,14 +464,14 @@
   for (const b of document.querySelectorAll(".layout-switch button")) b.onclick = () => setLayout(b.dataset.layout);
   setLayout(state.layout);
 
-  $("toggle-files").onclick = () => {
-    state.showFiles = !state.showFiles;
-    workspace.classList.toggle("hide-files", !state.showFiles);
+  $("toggle-sidebar").onclick = () => {
+    state.showSidebar = !state.showSidebar;
+    workspace.classList.toggle("hide-sidebar", !state.showSidebar);
     persist();
     editor.refresh();
     drawPages();
   };
-  workspace.classList.toggle("hide-files", !state.showFiles);
+  workspace.classList.toggle("hide-sidebar", !state.showSidebar);
 
   const editorPane = $("editor-pane");
   if (state.editorWidth) editorPane.style.flexBasis = `${state.editorWidth}px`;
@@ -401,6 +508,8 @@
 
   // ---------- start ----------
 
+  buildStylePanel();
+  setSideTab(state.sideTab);
   updateOutline();
   compile();
 })();

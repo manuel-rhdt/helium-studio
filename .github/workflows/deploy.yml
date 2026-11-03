@@ -29,6 +29,19 @@ jobs:
           repository: manuel-rhdt/helium
           path: helium
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: studio/package-lock.json
+
+      - name: Test the Markdown and style code
+        working-directory: studio
+        run: |
+          npm ci
+          npm test
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 

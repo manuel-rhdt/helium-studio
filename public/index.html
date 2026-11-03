@@ -12,7 +12,7 @@
 <body>
   <header class="toolbar">
     <div class="toolbar-left">
-      <button class="icon-btn" id="toggle-files" title="Toggle file tree" aria-label="Toggle file tree">
+      <button class="icon-btn" id="toggle-sidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
         <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       </button>
       <a class="brand" href="/" title="Helium Studio">
@@ -32,26 +32,29 @@
   </header>
 
   <main class="workspace" id="workspace" data-layout="split">
-    <aside class="file-panel" id="file-panel">
-      <div class="panel-heading">
-        <span>File tree</span>
+    <aside class="side-panel" id="side-panel">
+      <div class="side-tabs" role="tablist">
+        <button data-side-tab="style" class="active" role="tab">Style</button>
+        <button data-side-tab="outline" role="tab">Outline</button>
       </div>
-      <ul class="file-tree">
-        <li class="file active">
-          <svg viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/></svg>
-          main.html
-        </li>
-      </ul>
-      <div class="panel-heading outline-heading">
-        <span>File outline</span>
+      <div class="side-body" id="style-panel">
+        <p class="side-note">Look of the default elements in your document.</p>
+        <div id="style-controls"></div>
+        <button class="reset-btn" id="reset-style">Reset styles</button>
       </div>
-      <ul class="outline" id="outline"></ul>
+      <div class="side-body" id="outline-panel" hidden>
+        <ul class="outline" id="outline"></ul>
+      </div>
     </aside>
 
     <section class="editor-pane" id="editor-pane">
       <div class="pane-header">
-        <span class="tab active">main.html</span>
-        <span class="pane-hint">Ctrl/⌘ + S to recompile</span>
+        <span class="tab active" id="source-tab">main.md</span>
+        <div class="source-switch" role="group" aria-label="Source view">
+          <button data-source="markdown" class="active" title="Edit the Markdown">Markdown</button>
+          <button data-source="html" title="Show the generated HTML">HTML</button>
+        </div>
+        <span class="pane-hint" id="source-hint">Ctrl/⌘ + S to recompile</span>
       </div>
       <div class="editor-host" id="editor-host"></div>
     </section>
@@ -125,11 +128,13 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/xml-fold.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchtags.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/temml@0.14.0/dist/temml.min.js"></script>
+  <script src="markdown.js"></script>
+  <script src="styles.js"></script>
   <script src="example.js"></script>
   <script src="app.js"></script>
 </body>

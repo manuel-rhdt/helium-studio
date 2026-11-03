@@ -1,11 +1,32 @@
 # Helium Studio
 
-An Overleaf-style editor for HTML documents: write HTML on the left, get a PDF on the right,
+An Overleaf-style editor: write Markdown with TeX math on the left, get a PDF on the right,
 rendered by [helium](https://github.com/manuel-rhdt/helium) in a Netlify Function.
 
-- `public/` – static frontend (CodeMirror editor, pdf.js viewer), no build step
+- `public/` – static frontend, no build step:
+  - `markdown.js` – Markdown ([markdown-it](https://github.com/markdown-it/markdown-it)) with `$…$` and
+    `$$…$$` math converted to MathML by [Temml](https://temml.org); runs in the browser
+  - `styles.js` – the style settings (page, body text, headings, code, quotes, links) and the CSS built from them
+  - `app.js`, `index.html`, `style.css` – CodeMirror editor, **Style**/**Outline** sidebar, pdf.js viewer
 - `netlify/functions/render.mjs` – `POST /api/render { html }` → `{ pdf (base64), log, ms }`
 - `helium-bin/` – helium built for the Lambda runtime, plus the shared libraries and fonts it needs (build output, not committed)
+
+The browser turns the Markdown and the style settings into one HTML document, which is what the function
+renders. The **HTML** switch above the editor shows that generated document (read-only). Raw HTML inside the
+Markdown passes through.
+
+## Helium's limits
+
+Helium does not implement all of HTML and CSS, so some things do not render as they would in a browser:
+Markdown tables, and TeX matrices and multi-line environments (`pmatrix`, `cases`, `aligned`) are flattened
+because Helium has no table layout (`mtable` for math); the page is always A4; there is no letter spacing or
+`text-transform`. Fonts are limited to the ones bundled by `scripts/build-helium.sh`.
+
+## Tests
+
+```bash
+npm ci && npm test                 # unit tests for markdown.js and styles.js (Node 22)
+```
 
 ## Building helium
 
