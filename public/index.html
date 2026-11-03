@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Helium Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23138a07'/><text x='16' y='22' font-family='sans-serif' font-weight='700' font-size='16' text-anchor='middle' fill='white'>He</text></svg>">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=DM+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="toolbar">
+    <div class="toolbar-left">
+      <button class="icon-btn" id="toggle-files" title="Toggle file tree" aria-label="Toggle file tree">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <a class="brand" href="/" title="Helium Studio">
+        <span class="brand-mark">He</span>
+        <span class="brand-name">Helium Studio</span>
+      </a>
+    </div>
+    <input class="project-name" id="project-name" value="Untitled Document" spellcheck="false" aria-label="Project name">
+    <div class="toolbar-right">
+      <button class="toolbar-btn" id="reset-doc" title="Replace the editor contents with the example document">Example</button>
+      <div class="layout-switch" role="group" aria-label="Layout">
+        <button data-layout="editor" title="Editor only">Editor</button>
+        <button data-layout="split" class="active" title="Editor &amp; PDF">Split</button>
+        <button data-layout="pdf" title="PDF only">PDF</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="workspace" id="workspace" data-layout="split">
+    <aside class="file-panel" id="file-panel">
+      <div class="panel-heading">
+        <span>File tree</span>
+      </div>
+      <ul class="file-tree">
+        <li class="file active">
+          <svg viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/></svg>
+          main.html
+        </li>
+      </ul>
+      <div class="panel-heading outline-heading">
+        <span>File outline</span>
+      </div>
+      <ul class="outline" id="outline"></ul>
+    </aside>
+
+    <section class="editor-pane" id="editor-pane">
+      <div class="pane-header">
+        <span class="tab active">main.html</span>
+        <span class="pane-hint">Ctrl/⌘ + S to recompile</span>
+      </div>
+      <div class="editor-host" id="editor-host"></div>
+    </section>
+
+    <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" tabindex="0" title="Drag to resize"></div>
+
+    <section class="pdf-pane" id="pdf-pane">
+      <div class="pane-header pdf-toolbar">
+        <div class="recompile-group">
+          <button class="recompile-btn" id="recompile">
+            <svg class="spin-icon" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg>
+            <span id="recompile-label">Recompile</span>
+          </button>
+          <button class="recompile-caret" id="recompile-menu-btn" aria-haspopup="true" aria-label="Compile options">
+            <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="dropdown" id="recompile-menu" hidden>
+            <div class="dropdown-title">Auto compile</div>
+            <button data-auto="on"><span class="check"></span>On</button>
+            <button data-auto="off"><span class="check"></span>Off</button>
+          </div>
+        </div>
+        <button class="icon-btn logs-btn" id="logs-btn" title="Logs and output" aria-label="Logs and output">
+          <svg viewBox="0 0 24 24"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></svg>
+          <span class="badge" id="logs-badge" hidden></span>
+        </button>
+        <button class="icon-btn" id="download" title="Download PDF" aria-label="Download PDF" disabled>
+          <svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+        </button>
+        <span class="compile-status" id="compile-status"></span>
+        <div class="zoom">
+          <button class="icon-btn" id="zoom-out" aria-label="Zoom out">−</button>
+          <select id="zoom-select" aria-label="Zoom">
+            <option value="fit-width">Fit width</option>
+            <option value="fit-page">Fit page</option>
+            <option value="0.5">50%</option>
+            <option value="0.75">75%</option>
+            <option value="1">100%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+            <option value="2">200%</option>
+          </select>
+          <button class="icon-btn" id="zoom-in" aria-label="Zoom in">+</button>
+        </div>
+      </div>
+      <div class="pdf-body">
+        <div class="pdf-viewer" id="pdf-viewer">
+          <div class="pdf-empty" id="pdf-empty">
+            <p>Press <b>Recompile</b> to render your document with Helium.</p>
+          </div>
+        </div>
+        <div class="logs" id="logs" hidden>
+          <div class="logs-header">
+            <h2>Logs and output</h2>
+            <button class="icon-btn" id="logs-close" aria-label="Close logs">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+          <div id="logs-entries"></div>
+          <details class="raw-log">
+            <summary>Raw output</summary>
+            <pre id="raw-log"></pre>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/xml-fold.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchtags.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="example.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+[build]
+  publish = "public"
+  # helium-bin/ is prebuilt with scripts/build-helium.sh (needs Docker) and committed,
+  # so the Netlify build itself has nothing to compile.
+  command = ""
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  included_files = ["helium-bin/**"]
+
+[[redirects]]
+  from = "/api/render"
+  to = "/.netlify/functions/render"
+  status = 200
