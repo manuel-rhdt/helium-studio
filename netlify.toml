@@ -1,7 +1,7 @@
 [build]
   publish = "public"
-  # helium-bin/ is prebuilt with scripts/build-helium.sh (needs Docker) and committed,
-  # so the Netlify build itself has nothing to compile.
+  # helium-bin/ is built by GitHub Actions (scripts/build-helium.sh needs Docker) and deployed with
+  # the Netlify CLI, so Netlify's own build has nothing to compile.
   command = ""
 
 [functions]

@@ -1,4 +1,0 @@
-# the Lambda bundle in helium-bin/ is binary; do not diff or munge line endings
-helium-bin/bin/* binary
-helium-bin/lib/* binary
-helium-bin/fonts/* binary

@@ -1,0 +1,64 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# never run two deploys at once; a newer push supersedes a queued one
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out Helium Studio
+        uses: actions/checkout@v5
+        with:
+          path: studio
+
+      # helium lives in a private repository, so this needs a token that can read it
+      - name: Check out Helium
+        uses: actions/checkout@v5
+        with:
+          repository: manuel-rhdt/helium
+          token: ${{ secrets.HELIUM_REPO_TOKEN }}
+          path: helium
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # scripts/build-helium.sh mounts ~/.cargo and ~/.rustup into the Amazon Linux container
+      - name: Cache cargo downloads and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            studio/.build-cache/target
+            studio/.build-cache/fonts
+          key: helium-${{ runner.os }}-${{ hashFiles('helium/Cargo.lock') }}
+          restore-keys: helium-${{ runner.os }}-
+
+      # Netlify's build servers cannot run Docker, so the Lambda-compatible binary is built here
+      - name: Build helium for the Lambda runtime
+        run: studio/scripts/build-helium.sh
+
+      - name: Smoke test the render function
+        run: studio/scripts/smoke-test.sh
+
+      - name: Deploy to Netlify
+        working-directory: studio
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: >
+          npx --yes netlify-cli@27.14.0 deploy --prod
+          --dir=public --functions=netlify/functions
+          --message "${GITHUB_SHA::7} ${GITHUB_REF_NAME}"
