@@ -22,7 +22,14 @@ const MAX_PDF_BYTES = 4 * 1024 * 1024;
 // helium-bin is shipped via `included_files`; where it lands relative to the bundle differs
 // between `netlify dev`, the deployed function and a plain Lambda container.
 function findBundle() {
-  const here = path.dirname(fileURLToPath(import.meta.url));
+  // Netlify bundles the function with esbuild into CommonJS, where import.meta.url is undefined
+  // and __dirname exists instead; run as a plain ES module it is the other way around.
+  const here =
+    typeof __dirname === "string"
+      ? __dirname
+      : import.meta.url
+        ? path.dirname(fileURLToPath(import.meta.url))
+        : process.cwd();
   const candidates = [
     process.env.HELIUM_BUNDLE,
     process.env.LAMBDA_TASK_ROOT && path.join(process.env.LAMBDA_TASK_ROOT, "helium-bin"),
