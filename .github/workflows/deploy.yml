@@ -23,12 +23,10 @@ jobs:
         with:
           path: studio
 
-      # helium lives in a private repository, so this needs a token that can read it
       - name: Check out Helium
         uses: actions/checkout@v5
         with:
           repository: manuel-rhdt/helium
-          token: ${{ secrets.HELIUM_REPO_TOKEN }}
           path: helium
 
       - name: Install Rust toolchain

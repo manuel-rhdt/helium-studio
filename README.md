@@ -36,7 +36,6 @@ secrets (Settings → Secrets and variables → Actions):
 
 | Secret | Value |
 | --- | --- |
-| `HELIUM_REPO_TOKEN` | fine-grained personal access token with read access to `contents` of the private `manuel-rhdt/helium` repo |
 | `NETLIFY_AUTH_TOKEN` | Netlify personal access token |
 | `NETLIFY_SITE_ID` | the site's ID (Site configuration → Site ID) |
 
