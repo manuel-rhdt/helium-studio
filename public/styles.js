@@ -9,14 +9,31 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  // fonts bundled with the render function (see scripts/build-helium.sh)
+  // Fonts bundled with the render function: DejaVu and STIX Two Text by scripts/build-helium.sh, the
+  // rest by scripts/build-fonts.sh (keep scripts/fonts.py in step). [family, kind]; the kind is also
+  // the generic family used as a fallback.
   const FONTS = [
-    ["STIX Two Text", "STIX Two Text (serif)", "serif"],
-    ["DejaVu Serif", "DejaVu Serif", "serif"],
-    ["DejaVu Sans", "DejaVu Sans", "sans-serif"],
-    ["DejaVu Sans Mono", "DejaVu Sans Mono", "monospace"],
+    ["STIX Two Text", "serif"],
+    ["Latin Modern Roman", "serif"],
+    ["Libertinus Serif", "serif"],
+    ["EB Garamond", "serif"],
+    ["Noto Serif", "serif"],
+    ["Liberation Serif", "serif"],
+    ["DejaVu Serif", "serif"],
+    ["Source Sans 3", "sans-serif"],
+    ["Lato", "sans-serif"],
+    ["Latin Modern Sans", "sans-serif"],
+    ["Liberation Sans", "sans-serif"],
+    ["DejaVu Sans", "sans-serif"],
+    ["Source Code Pro", "monospace"],
+    ["Latin Modern Mono", "monospace"],
+    ["Liberation Mono", "monospace"],
+    ["DejaVu Sans Mono", "monospace"],
   ];
-  const fontOptions = FONTS.map(([value, label]) => [value, label]);
+  const KIND_LABELS = { serif: "serif", "sans-serif": "sans", monospace: "mono" };
+  const fontLabel = ([family, kind]) => `${family} (${KIND_LABELS[kind]})`;
+  const fontOptions = FONTS.map((font) => [font[0], fontLabel(font)]);
+  const monoFontOptions = FONTS.filter(([, kind]) => kind === "monospace").map((font) => [font[0], fontLabel(font)]);
 
   const num = (key, label, unit, min, max, step, def) => ({ key, label, type: "number", unit, min, max, step, default: def });
   const color = (key, label, def) => ({ key, label, type: "color", default: def });
@@ -67,7 +84,7 @@
       id: "code",
       title: "Code",
       controls: [
-        select("font", "Font", fontOptions, "DejaVu Sans Mono"),
+        select("font", "Font", monoFontOptions, "DejaVu Sans Mono"),
         num("size", "Font size", "pt", 6, 24, 0.5, 9.5),
         color("background", "Block background", "#f3f4f6"),
       ],
@@ -121,9 +138,9 @@
   }
 
   const fontStack = (name) => {
-    const font = FONTS.find(([value]) => value === name) ?? FONTS[0];
+    const [family, kind] = FONTS.find(([value]) => value === name) ?? FONTS[0];
     // helium aborts when none of the listed fonts exists, so always end with a generic family
-    return `"${font[0]}", ${font[2]}`;
+    return `"${family}", ${kind}`;
   };
   const round = (value) => Math.round(value * 100) / 100;
 
@@ -179,5 +196,5 @@ ${bodyHtml}</body>
 `;
   }
 
-  return { SECTIONS, defaults, normalize, buildCss, buildDocument };
+  return { FONTS, SECTIONS, defaults, normalize, buildCss, buildDocument };
 });

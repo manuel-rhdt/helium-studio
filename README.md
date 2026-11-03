@@ -20,7 +20,17 @@ Markdown passes through.
 Helium does not implement all of HTML and CSS, so some things do not render as they would in a browser:
 Markdown tables, and TeX matrices and multi-line environments (`pmatrix`, `cases`, `aligned`) are flattened
 because Helium has no table layout (`mtable` for math); the page is always A4; there is no letter spacing or
-`text-transform`. Fonts are limited to the ones bundled by `scripts/build-helium.sh`.
+`text-transform`.
+
+## Fonts
+
+The style sidebar offers 16 families: STIX Two Text, DejaVu (serif, sans, mono), Latin Modern (roman, sans,
+mono), Libertinus Serif, EB Garamond, Noto Serif, Liberation (serif, sans, mono), Source Sans 3, Source Code
+Pro and Lato. Helium can only use fonts that are bundled with the function, and it embeds the whole font file
+in the PDF, so `scripts/build-fonts.sh` takes them from Amazon Linux's font packages and subsets them to
+Latin, Greek, Cyrillic, punctuation, symbols and arrows (`scripts/fonts.py`; kerning and ligatures are kept).
+To add a family, list it in `scripts/fonts.py` and in `FONTS` in `public/styles.js`; a test checks that the
+two agree. Math uses STIX Two Math / Latin Modern Math and is not affected by the font settings.
 
 ## Tests
 

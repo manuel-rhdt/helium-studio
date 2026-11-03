@@ -61,3 +61,34 @@ test("document wraps the body and escapes the title", () => {
   assert.match(html, /<title>A &amp; &lt;B&gt;<\/title>/);
   assert.match(html, /<body>\n<p>x<\/p>\n<\/body>/);
 });
+
+test("the code font only offers monospaced fonts", () => {
+  const code = styles.SECTIONS.find((section) => section.id === "code").controls.find((control) => control.key === "font");
+  const mono = styles.FONTS.filter(([, kind]) => kind === "monospace").map(([family]) => family);
+  assert.deepEqual(code.options.map(([family]) => family), mono);
+  assert.ok(mono.length >= 2);
+});
+
+test("every font ends its stack with a generic family", () => {
+  for (const [family, kind] of styles.FONTS) {
+    const settings = styles.defaults();
+    settings.body.font = family;
+    assert.ok(styles.buildCss(settings).includes(`font-family: "${family}", ${kind};`), family);
+  }
+});
+
+test("every font in the sidebar is bundled by a build script", () => {
+  const fs = require("node:fs");
+  const fonts = fs.readFileSync(__dirname + "/../scripts/fonts.py", "utf8");
+  const build = fs.readFileSync(__dirname + "/../scripts/build-helium.sh", "utf8");
+  // build-helium.sh bundles these (DejaVu through a brace expansion, STIX Two Text by file name)
+  const fromHeliumBuild = {
+    "STIX Two Text": build.includes("STIXTwoText-Regular"),
+    "DejaVu Serif": build.includes("DejaVu{Sans,Serif,SansMono}"),
+    "DejaVu Sans": build.includes("DejaVu{Sans,Serif,SansMono}"),
+    "DejaVu Sans Mono": build.includes("DejaVu{Sans,Serif,SansMono}"),
+  };
+  for (const [family] of styles.FONTS) {
+    assert.ok(fromHeliumBuild[family] || fonts.includes(`"${family}"`), `${family} is not bundled`);
+  }
+});
