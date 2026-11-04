@@ -76,7 +76,7 @@ Actions tab, or add a workflow in the helium repo that sends a `repository_dispa
 
 Synchronous functions have a ~10 s timeout and a 6 MB response limit. The function guards both:
 renders are cut off at 8 s (→ clean `422`) and PDFs over 4 MB are rejected (→ `413`), so neither
-turns into an opaque platform error. PDFs embed whole fonts (~2 MB for the example).
+turns into an opaque platform error. Helium subsets the fonts it embeds, so the example PDF is about 150 KB.
 
 Since rendering is public and a small document can cost several seconds of CPU, put the endpoint
 behind Netlify's rate limiting (or auth) before exposing it widely, to limit cost-amplification abuse.
