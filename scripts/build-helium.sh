@@ -107,7 +107,7 @@ LM_ZIP="$CACHE/fonts/latinmodern-math.zip"
 [[ -f "$LM_ZIP" ]] || fetch https://www.gust.org.pl/projects/e-foundry/lm-math/download/latinmodern-math-1959.zip "$LM_ZIP"
 unzip -o -q -j "$LM_ZIP" "*/otf/latinmodern-math.otf" -d "$OUT/fonts"
 
-# the other text fonts offered in the style sidebar, subsetted (see scripts/fonts.py)
+# the other text fonts offered in the style sidebar (see scripts/fonts.py)
 "$ROOT/scripts/build-fonts.sh" "$OUT/fonts"
 
 du -sh "$OUT"/*

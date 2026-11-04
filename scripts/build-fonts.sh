@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Collects the text fonts of the style sidebar (see scripts/fonts.py) from Amazon Linux's font
-# packages, subsets them and copies them into a directory (default: ./helium-bin/fonts).
+# packages and copies them into a directory (default: ./helium-bin/fonts).
 # The result is cached by the content of the two scripts, so it is only rebuilt when they change.
 #
 # Usage: scripts/build-fonts.sh [output-dir]
@@ -10,12 +10,12 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:-$ROOT/helium-bin/fonts}"
 CACHE="$ROOT/.build-cache/fonts"
 KEY="$(cat "$ROOT/scripts/fonts.py" "$ROOT/scripts/build-fonts.sh" | sha256sum | cut -c1-12)"
-DIR="$CACHE/subset-$KEY"
+DIR="$CACHE/text-$KEY"
 
 if [[ ! -d "$DIR" ]]; then
-  echo "==> building subsetted fonts"
+  echo "==> collecting fonts"
   mkdir -p "$CACHE"
-  rm -rf "$CACHE"/subset-*
+  rm -rf "$CACHE"/text-*
   mkdir -p "$DIR.tmp"
   # --network host: see build-helium.sh
   docker run --rm --network host \
@@ -23,7 +23,7 @@ if [[ ! -d "$DIR" ]]; then
     -v "$DIR.tmp":/out \
     -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
     amazonlinux:2023 bash -euo pipefail -c '
-      dnf install -y -q --setopt=install_weak_deps=False findutils fontconfig python3-fonttools \
+      dnf install -y -q --setopt=install_weak_deps=False findutils fontconfig python3 \
         liberation-serif-fonts liberation-sans-fonts liberation-mono-fonts \
         adobe-source-sans-pro-fonts adobe-source-code-pro-fonts lato-fonts google-noto-serif-fonts \
         texlive-lm texlive-libertinus-fonts texlive-ebgaramond

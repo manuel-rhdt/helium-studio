@@ -1,21 +1,18 @@
 #!/usr/bin/env python3
-"""Picks the text fonts offered in the style sidebar and subsets them.
+"""Picks the text fonts offered in the style sidebar from the installed font packages.
 
 Runs inside the Amazon Linux build container (see build-fonts.sh), where the font packages are
 installed. Usage: fonts.py OUTPUT_DIR
 
-helium embeds the whole font file for every face a document uses, and the PDF has to stay under the
-function's response limit, so the fonts are reduced to the scripts and symbols a document is likely
-to use. Layout tables (kerning, ligatures) are kept. The math fonts are not touched here.
+The files are copied as they are: helium subsets the fonts it embeds into the PDF. The math fonts
+are not handled here.
 
 Keep FAMILIES in step with FONTS in public/styles.js (test/styles.test.js checks this).
 """
 import os
+import shutil
 import subprocess
 import sys
-
-from fontTools import subset
-from fontTools.ttLib import TTFont
 
 # Faces are chosen by fontconfig weight (80 regular, 200 bold) and slant, not by style name: a Black
 # cut also lists "Regular" as its legacy style name, so names pick the wrong files.
@@ -38,15 +35,6 @@ FAMILIES = [
     ("Latin Modern Mono", ["Regular", "Italic"], "lmmono10-"),
     ("Source Code Pro", ALL_FACES, ""),
     ("Liberation Mono", ALL_FACES, ""),
-]
-
-# Latin, Greek and Cyrillic, punctuation and symbols, arrows, math operators, box drawing, ligatures
-RANGES = [
-    (0x0020, 0x024F), (0x0250, 0x02FF), (0x0300, 0x036F), (0x0370, 0x03FF), (0x0400, 0x052F),
-    (0x1E00, 0x1EFF), (0x1F00, 0x1FFF), (0x2000, 0x206F), (0x2070, 0x209F), (0x20A0, 0x20CF),
-    (0x2100, 0x214F), (0x2150, 0x218F), (0x2190, 0x21FF), (0x2200, 0x22FF), (0x2300, 0x23FF),
-    (0x2500, 0x257F), (0x2580, 0x259F), (0x25A0, 0x25FF), (0x2600, 0x26FF), (0x2700, 0x27BF),
-    (0xFB00, 0xFB06),
 ]
 ROOTS = ["/usr/share/fonts", "/usr/share/texlive"]
 
@@ -77,37 +65,10 @@ def scan(paths):
     return fonts
 
 
-def subset_font(source, target):
-    options = subset.Options()
-    options.layout_features = ["*"]
-    options.name_IDs = ["*"]
-    options.name_languages = ["*"]
-    options.notdef_outline = True
-    # Hints only matter on screen, not in a PDF, so they are dropped from CFF fonts. For TrueType fonts
-    # they are kept: helium copies the cvt, prep and fpgm tables into the PDF and panics without them.
-    options.hinting = source.lower().endswith(".ttf")
-    font = subset.load_font(source, options)
-    subsetter = subset.Subsetter(options)
-    subsetter.populate(unicodes=[cp for start, end in RANGES for cp in range(start, end + 1)])
-    subsetter.subset(font)
-    subset.save_font(font, target, options)
-    font.close()
-
-
-def check_embeddable(path):
-    """helium needs these tables to embed a TrueType font (src/layout/text/to_pdf_font.rs)."""
-    font = TTFont(path)
-    if "glyf" in font:
-        missing = [tag for tag in ("head", "hhea", "loca", "maxp", "cvt ", "prep", "glyf", "hmtx", "fpgm") if tag not in font]
-        if missing:
-            sys.exit(f"{path}: helium cannot embed this TrueType font, missing tables {missing}")
-    font.close()
-
-
 def main(out_dir):
     os.makedirs(out_dir, exist_ok=True)
     fonts = scan(sorted(set(font_files())))
-    total_before = total_after = 0
+    total = 0
     for family, faces, prefix in FAMILIES:
         for face in faces:
             weight, slanted = FACES[face]
@@ -124,13 +85,11 @@ def main(out_dir):
                 sys.exit(f"expected one file for {family} / {face}, found {sorted(names) or 'none'}")
             source = candidates[0]
             target = os.path.join(out_dir, f"{family}-{face}".replace(" ", "") + os.path.splitext(source)[1].lower())
-            subset_font(source, target)
-            check_embeddable(target)
-            before, after = os.path.getsize(source), os.path.getsize(target)
-            total_before += before
-            total_after += after
-            print(f"{family:20} {face:12} {os.path.basename(source):34} {before / 1024:6.0f} KB -> {after / 1024:5.0f} KB")
-    print(f"total {total_before / 1e6:.1f} MB -> {total_after / 1e6:.1f} MB")
+            shutil.copyfile(source, target)
+            size = os.path.getsize(target)
+            total += size
+            print(f"{family:20} {face:12} {os.path.basename(source):34} {size / 1024:6.0f} KB")
+    print(f"total {total / 1e6:.1f} MB")
 
 
 if __name__ == "__main__":
