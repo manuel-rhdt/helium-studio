@@ -23,7 +23,7 @@ if [[ ! -d "$DIR" ]]; then
     -v "$DIR.tmp":/out \
     -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
     amazonlinux:2023 bash -euo pipefail -c '
-      dnf install -y -q --setopt=install_weak_deps=False findutils fontconfig python3 \
+      dnf install -y -q --setopt=install_weak_deps=False --setopt=retries=10 findutils fontconfig python3 \
         liberation-serif-fonts liberation-sans-fonts liberation-mono-fonts \
         adobe-source-sans-pro-fonts adobe-source-code-pro-fonts lato-fonts google-noto-serif-fonts \
         texlive-lm texlive-libertinus-fonts texlive-ebgaramond

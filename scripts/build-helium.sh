@@ -30,6 +30,13 @@ if [[ ! -x "$CARGO_DIR/bin/cargo" ]]; then
   exit 1
 fi
 
+# Fetch the dependencies here instead of in the container: this machine's network is more reliable
+# than a container's, and the container then builds offline. Cargo fetches git dependencies with the
+# git command line (its built-in client drops connections on flaky networks) and retries.
+export CARGO_NET_RETRY=10 CARGO_NET_GIT_FETCH_WITH_CLI=true
+"$CARGO_DIR/bin/cargo" fetch --locked --manifest-path "$SRC/Cargo.toml" ||
+  echo "warning: cargo fetch failed; the container will try to fetch the dependencies itself" >&2
+
 mkdir -p "$CACHE"
 rm -rf "$OUT"
 mkdir -p "$OUT"
@@ -45,13 +52,14 @@ docker run --rm --network host \
   -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
   amazonlinux:2023 bash -euo pipefail -c '
     echo "==> installing build dependencies"
-    dnf install -y -q gcc gcc-c++ make git tar unzip findutils binutils util-linux \
+    dnf install -y -q --setopt=retries=10 gcc gcc-c++ make git tar unzip findutils binutils util-linux \
       fontconfig-devel freetype-devel dejavu-sans-fonts dejavu-serif-fonts dejavu-sans-mono-fonts
 
     # everything below runs as the host user so ~/.cargo and the outputs stay owned by them
     as_user() {
       setpriv --reuid="$HOST_UID" --regid="$HOST_GID" --clear-groups \
         env HOME=/cache RUSTUP_HOME=/rustup CARGO_HOME=/cargo CARGO_TARGET_DIR=/cache/target \
+        CARGO_NET_RETRY=10 CARGO_NET_GIT_FETCH_WITH_CLI=true \
         PATH=/cargo/bin:/usr/bin:/bin "$@"
     }
 
