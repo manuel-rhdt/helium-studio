@@ -25,9 +25,10 @@ function (`included_files` in `netlify.toml`). To update helium, change `VERSION
 ## Fonts
 
 The style sidebar offers the fonts built into helium: TeX Gyre Termes (Times-like serif), TeX Gyre Heros
-(Helvetica-like sans) and TeX Gyre Cursor (Courier-like mono). Math uses STIX Two Math. Helium also reads fonts
-from the directories listed in the file `FONTCONFIG_FILE` points to, so more fonts could be shipped next to the
-function and offered in `FONTS` in `public/styles.js`.
+(Helvetica-like sans) and TeX Gyre Cursor (Courier-like mono). Math uses STIX Two Math. The function runs
+helium with `HELIUM_NO_SYSTEM_FONTS=1`, so installed fonts are ignored and the output is the same on every
+machine. To offer more fonts, ship font files with the function, drop that variable, point `FONTCONFIG_FILE`
+at a fonts.conf that lists their directory, and add them to `FONTS` in `public/styles.js`.
 
 ## Helium's limits
 

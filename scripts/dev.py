@@ -32,7 +32,7 @@ def run_helium(html):
         source.write_text(html, encoding="utf-8")
         try:
             done = subprocess.run(
-                [BINARY, source, target], capture_output=True, text=True, timeout=TIMEOUT_S, env={"RUST_LOG": "warn"}
+                [BINARY, source, target], capture_output=True, text=True, timeout=TIMEOUT_S, env={"RUST_LOG": "warn", "HELIUM_NO_SYSTEM_FONTS": "1"}
             )
         except subprocess.TimeoutExpired:
             return None, "", f"helium timed out after {TIMEOUT_S}s"

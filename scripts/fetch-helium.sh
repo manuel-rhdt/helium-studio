@@ -7,8 +7,8 @@
 # To update helium, set VERSION and SHA256 (the digest GitHub shows for the release asset).
 set -euo pipefail
 
-VERSION="v0.1"
-SHA256="25e1f52b2059f2b936626afa13f2cf2d82a3265cb73c0d3da3615406b3aaaae1"
+VERSION="v0.1.1"
+SHA256="223b193e8e0d31d8ad8ac44a47dff5baf52964c87ddc8bc71d21962f163bded8"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/helium-bin"

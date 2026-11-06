@@ -45,6 +45,15 @@ test("renders every font of the sidebar", needsBinary, async () => {
   }
 });
 
+test("installed fonts are ignored, so the output does not depend on the machine", needsBinary, async () => {
+  // "Latin Modern Roman" is installed on many developer machines; the function must use the built-in fonts
+  const { status, body } = await render("<p style=\"font-family: 'Latin Modern Roman', serif\">Some text</p>");
+  assert.equal(status, 200);
+  const pdf = Buffer.from(body.pdf, "base64");
+  assert.ok(!pdf.includes("LMRoman"), "an installed font was embedded");
+  assert.ok(pdf.includes("TeXGyreTermes"), "the built-in serif font was not used");
+});
+
 test("a problem in the user's CSS shows up in the log", needsBinary, async () => {
   const { status, body } = await render("<style>p { colr: red }</style><p>x</p>");
   assert.equal(status, 200);

@@ -59,8 +59,12 @@ function setup() {
     binary = copy;
   }
 
-  // helium is a static binary with its fonts built in, so it needs no libraries or font setup
-  runtime = { binary, env: { PATH: process.env.PATH, HOME: work, RUST_LOG: "warn", RUST_BACKTRACE: "1" } };
+  // helium is a static binary with its fonts built in, so it needs no libraries or font setup. It
+  // ignores installed fonts so that the output is the same on every machine.
+  runtime = {
+    binary,
+    env: { PATH: process.env.PATH, HOME: work, HELIUM_NO_SYSTEM_FONTS: "1", RUST_LOG: "warn", RUST_BACKTRACE: "1" },
+  };
   return runtime;
 }
 
