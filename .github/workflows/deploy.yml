@@ -1,4 +1,4 @@
-name: Build and deploy
+name: Test and deploy
 
 on:
   push:
@@ -16,56 +16,25 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 15
     steps:
-      - name: Check out Helium Studio
-        uses: actions/checkout@v5
-        with:
-          path: studio
+      - uses: actions/checkout@v5
 
-      - name: Check out Helium
-        uses: actions/checkout@v5
-        with:
-          repository: manuel-rhdt/helium
-          path: helium
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: studio/package-lock.json
 
-      - name: Test the Markdown and style code
-        working-directory: studio
+      # the prebuilt static helium binary, shipped with the render function
+      - name: Fetch helium
+        run: scripts/fetch-helium.sh
+
+      - name: Test
         run: |
           npm ci
           npm test
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      # scripts/build-helium.sh mounts ~/.cargo and ~/.rustup into the Amazon Linux container
-      - name: Cache cargo downloads and build output
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            studio/.build-cache/target
-            studio/.build-cache/fonts
-          key: helium-${{ runner.os }}-${{ hashFiles('helium/Cargo.lock') }}
-          restore-keys: helium-${{ runner.os }}-
-
-      # Netlify's build servers cannot run Docker, so the Lambda-compatible binary is built here
-      - name: Build helium for the Lambda runtime
-        run: studio/scripts/build-helium.sh
-
-      - name: Smoke test the render function
-        run: studio/scripts/smoke-test.sh
-
       - name: Deploy to Netlify
-        working-directory: studio
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}

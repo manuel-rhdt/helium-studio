@@ -9,26 +9,13 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  // Fonts bundled with the render function: DejaVu and STIX Two Text by scripts/build-helium.sh, the
-  // rest by scripts/build-fonts.sh (keep scripts/fonts.py in step). [family, kind]; the kind is also
-  // the generic family used as a fallback.
+  // The fonts built into the helium binary (TeX Gyre: Times-, Helvetica- and Courier-like). helium can
+  // also use fonts installed on the system, but none are bundled with the function. [family, kind];
+  // the kind is also the generic family used as a fallback.
   const FONTS = [
-    ["STIX Two Text", "serif"],
-    ["Latin Modern Roman", "serif"],
-    ["Libertinus Serif", "serif"],
-    ["EB Garamond", "serif"],
-    ["Noto Serif", "serif"],
-    ["Liberation Serif", "serif"],
-    ["DejaVu Serif", "serif"],
-    ["Source Sans 3", "sans-serif"],
-    ["Lato", "sans-serif"],
-    ["Latin Modern Sans", "sans-serif"],
-    ["Liberation Sans", "sans-serif"],
-    ["DejaVu Sans", "sans-serif"],
-    ["Source Code Pro", "monospace"],
-    ["Latin Modern Mono", "monospace"],
-    ["Liberation Mono", "monospace"],
-    ["DejaVu Sans Mono", "monospace"],
+    ["TeX Gyre Termes", "serif"],
+    ["TeX Gyre Heros", "sans-serif"],
+    ["TeX Gyre Cursor", "monospace"],
   ];
   const KIND_LABELS = { serif: "serif", "sans-serif": "sans", monospace: "mono" };
   const fontLabel = ([family, kind]) => `${family} (${KIND_LABELS[kind]})`;
@@ -60,7 +47,7 @@
       id: "body",
       title: "Body text",
       controls: [
-        select("font", "Font", fontOptions, "STIX Two Text"),
+        select("font", "Font", fontOptions, "TeX Gyre Termes"),
         num("size", "Font size", "pt", 6, 30, 0.5, 11),
         num("lineHeight", "Line height", "", 1, 3, 0.05, 1.45),
         color("color", "Text color", "#111111"),
@@ -84,7 +71,7 @@
       id: "code",
       title: "Code",
       controls: [
-        select("font", "Font", monoFontOptions, "DejaVu Sans Mono"),
+        select("font", "Font", monoFontOptions, "TeX Gyre Cursor"),
         num("size", "Font size", "pt", 6, 24, 0.5, 9.5),
         color("background", "Block background", "#f3f4f6"),
       ],

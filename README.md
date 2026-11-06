@@ -9,74 +9,65 @@ rendered by [helium](https://github.com/manuel-rhdt/helium) in a Netlify Functio
   - `styles.js` – the style settings (page, body text, headings, code, quotes, links) and the CSS built from them
   - `app.js`, `index.html`, `style.css` – CodeMirror editor, **Style**/**Outline** sidebar, pdf.js viewer
 - `netlify/functions/render.mjs` – `POST /api/render { html }` → `{ pdf (base64), log, ms }`
-- `helium-bin/` – helium built for the Lambda runtime, plus the shared libraries and fonts it needs (build output, not committed)
+- `scripts/fetch-helium.sh` – downloads the helium release that the function runs
 
 The browser turns the Markdown and the style settings into one HTML document, which is what the function
 renders. The **HTML** switch above the editor shows that generated document (read-only). Raw HTML inside the
 Markdown passes through.
 
-## Helium's limits
+## How helium runs
 
-Helium does not implement all of HTML and CSS, so some things do not render as they would in a browser:
-Markdown tables, and TeX matrices and multi-line environments (`pmatrix`, `cases`, `aligned`) are flattened
-because Helium has no table layout (`mtable` for math); the page is always A4; there is no letter spacing or
-`text-transform`.
+Helium is a single static (musl) executable with its fonts and the math fonts built in, so the function needs
+nothing but that file: no libraries, no font files, no container. `scripts/fetch-helium.sh` downloads the
+release pinned in the script and checks its SHA-256; the Netlify CLI then ships `helium-bin/` with the
+function (`included_files` in `netlify.toml`). To update helium, change `VERSION` and `SHA256` in the script.
 
 ## Fonts
 
-The style sidebar offers 16 families: STIX Two Text, DejaVu (serif, sans, mono), Latin Modern (roman, sans,
-mono), Libertinus Serif, EB Garamond, Noto Serif, Liberation (serif, sans, mono), Source Sans 3, Source Code
-Pro and Lato. Helium can only use fonts that are bundled with the function, so `scripts/build-fonts.sh` takes
-them from Amazon Linux's font packages (`scripts/fonts.py` picks the faces). Helium subsets the fonts it
-embeds, so the PDFs only carry the glyphs a document uses. To add a family, list it in `scripts/fonts.py`
-and in `FONTS` in `public/styles.js`; a test checks that the two agree. Math uses STIX Two Math / Latin
-Modern Math and is not affected by the font settings.
+The style sidebar offers the fonts built into helium: TeX Gyre Termes (Times-like serif), TeX Gyre Heros
+(Helvetica-like sans) and TeX Gyre Cursor (Courier-like mono). Math uses STIX Two Math. Helium also reads fonts
+from the directories listed in the file `FONTCONFIG_FILE` points to, so more fonts could be shipped next to the
+function and offered in `FONTS` in `public/styles.js`.
 
-## Tests
+## Helium's limits
 
-```bash
-npm ci && npm test                 # unit tests for markdown.js and styles.js (Node 22)
-```
-
-## Building helium
-
-Netlify Functions run on Amazon Linux 2023 (glibc 2.34), so a binary built on a newer distro
-won't load there. Build it in a matching container (needs Docker and a local rustup toolchain):
-
-```bash
-scripts/build-helium.sh            # uses ../helium; pass another checkout as the first argument
-scripts/smoke-test.sh              # renders a document with it in the Lambda Node 22 image
-```
-
-`helium-bin/` is git-ignored; GitHub Actions builds it for every deploy (see below).
+Helium does not implement all of HTML and CSS, so some things do not render as they would in a browser:
+Markdown tables are not laid out as tables (each row becomes a line of text), the page is always A4, and there
+is no letter spacing or `text-transform`.
 
 ## Running locally
 
 ```bash
-scripts/dev.py                     # http://localhost:8888, function runs in the Lambda Node 22 image
+scripts/fetch-helium.sh            # once
+scripts/dev.py                     # http://localhost:8888
 ```
 
-`netlify dev` works too if you have the Netlify CLI.
+`dev.py` serves `public/` and runs the helium binary directly, without Node. `netlify dev` runs the real
+function if you have the Netlify CLI.
+
+## Tests
+
+```bash
+npm ci && npm test                 # Node 22; needs helium-bin/ for the render tests, which are skipped without it
+```
 
 ## Deploying
 
-Netlify's build servers can't run Docker, so `.github/workflows/deploy.yml` does the build:
-on every push to `main` (or manually from the Actions tab) it builds helium in the Amazon Linux
-container, smoke-tests the render function and deploys with the Netlify CLI. Set these repository
-secrets (Settings → Secrets and variables → Actions):
+`.github/workflows/deploy.yml` runs on every push to `main` (or manually from the Actions tab): it fetches
+helium, runs the tests and deploys with the Netlify CLI. Set these repository secrets (Settings → Secrets and
+variables → Actions):
 
 | Secret | Value |
 | --- | --- |
 | `NETLIFY_AUTH_TOKEN` | Netlify personal access token |
 | `NETLIFY_SITE_ID` | the site's ID (Site configuration → Site ID) |
 
-Create the Netlify site without linking the repo (or turn off its automatic builds), since the
-workflow does the deploying. Changes to helium itself don't trigger the workflow; re-run it from the
-Actions tab, or add a workflow in the helium repo that sends a `repository_dispatch` event.
+Create the Netlify site without linking the repo (or turn off its automatic builds), since the workflow does
+the deploying.
 
-Synchronous functions have a ~10 s timeout and a 6 MB response limit. The function guards both:
-renders are cut off at 8 s (→ clean `422`) and PDFs over 4 MB are rejected (→ `413`), so neither
-turns into an opaque platform error. Helium subsets the fonts it embeds, so the example PDF is about 150 KB.
+Synchronous functions have a ~10 s timeout and a 6 MB response limit. The function guards both: renders are
+cut off at 8 s (→ clean `422`) and PDFs over 4 MB are rejected (→ `413`), so neither turns into an opaque
+platform error. Helium subsets the fonts it embeds, so the example PDF is under 100 KB.
 
-Since rendering is public and a small document can cost several seconds of CPU, put the endpoint
-behind Netlify's rate limiting (or auth) before exposing it widely, to limit cost-amplification abuse.
+Since rendering is public and a small document can cost several seconds of CPU, put the endpoint behind
+Netlify's rate limiting (or auth) before exposing it widely, to limit cost-amplification abuse.

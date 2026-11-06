@@ -4,7 +4,7 @@
 // 200 -> { pdf: <base64>, log: <stderr>, ms: <render time> }
 // 422 -> { error, log, ms }        helium failed on the document
 import { execFile } from "node:child_process";
-import { existsSync, accessSync, constants, copyFileSync, chmodSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, accessSync, constants, copyFileSync, chmodSync, mkdirSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -19,9 +19,9 @@ const MAX_LOG_CHARS = 20_000;
 // PDF so the JSON response stays under that limit; otherwise the platform returns an uncatchable 413.
 const MAX_PDF_BYTES = 4 * 1024 * 1024;
 
-// helium-bin is shipped via `included_files`; where it lands relative to the bundle differs
-// between `netlify dev`, the deployed function and a plain Lambda container.
-function findBundle() {
+// The helium binary (scripts/fetch-helium.sh) is shipped via `included_files`; where it lands relative
+// to the bundle differs between `netlify dev`, the deployed function and a plain Lambda container.
+function findBinary() {
   // Netlify bundles the function with esbuild into CommonJS, where import.meta.url is undefined
   // and __dirname exists instead; run as a plain ES module it is the other way around.
   const here =
@@ -31,26 +31,25 @@ function findBundle() {
         ? path.dirname(fileURLToPath(import.meta.url))
         : process.cwd();
   const candidates = [
-    process.env.HELIUM_BUNDLE,
-    process.env.LAMBDA_TASK_ROOT && path.join(process.env.LAMBDA_TASK_ROOT, "helium-bin"),
-    path.join(here, "helium-bin"),
-    path.join(here, "../../helium-bin"),
-    path.join(process.cwd(), "helium-bin"),
+    process.env.HELIUM_BINARY,
+    process.env.LAMBDA_TASK_ROOT && path.join(process.env.LAMBDA_TASK_ROOT, "helium-bin/helium"),
+    path.join(here, "helium-bin/helium"),
+    path.join(here, "../../helium-bin/helium"),
+    path.join(process.cwd(), "helium-bin/helium"),
   ].filter(Boolean);
-  const found = candidates.find((dir) => existsSync(path.join(dir, "bin/helium")));
-  if (!found) throw new Error(`helium bundle not found (looked in ${candidates.join(", ")})`);
+  const found = candidates.find((file) => existsSync(file));
+  if (!found) throw new Error(`helium binary not found (looked in ${candidates.join(", ")})`);
   return found;
 }
 
 let runtime;
 function setup() {
   if (runtime) return runtime;
-  const bundle = findBundle();
   const work = path.join(tmpdir(), "helium-runtime");
-  mkdirSync(path.join(work, "fc-cache"), { recursive: true });
+  mkdirSync(work, { recursive: true });
 
   // the deploy zip does not always keep the executable bit, and /var/task is read-only
-  let binary = path.join(bundle, "bin/helium");
+  let binary = findBinary();
   try {
     accessSync(binary, constants.X_OK);
   } catch {
@@ -60,33 +59,8 @@ function setup() {
     binary = copy;
   }
 
-  // fontconfig needs absolute paths, which are only known at runtime
-  const fontsConf = path.join(work, "fonts.conf");
-  writeFileSync(
-    fontsConf,
-    `<?xml version="1.0"?>
-<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
-<fontconfig>
-  <dir>${path.join(bundle, "fonts")}</dir>
-  <cachedir>${path.join(work, "fc-cache")}</cachedir>
-  <alias><family>serif</family><prefer><family>STIX Two Text</family><family>DejaVu Serif</family></prefer></alias>
-  <alias><family>sans-serif</family><prefer><family>DejaVu Sans</family></prefer></alias>
-  <alias><family>monospace</family><prefer><family>DejaVu Sans Mono</family></prefer></alias>
-</fontconfig>
-`,
-  );
-
-  runtime = {
-    binary,
-    env: {
-      PATH: process.env.PATH,
-      HOME: work,
-      LD_LIBRARY_PATH: [path.join(bundle, "lib"), process.env.LD_LIBRARY_PATH].filter(Boolean).join(":"),
-      FONTCONFIG_FILE: fontsConf,
-      RUST_LOG: "warn",
-      RUST_BACKTRACE: "1",
-    },
-  };
+  // helium is a static binary with its fonts built in, so it needs no libraries or font setup
+  runtime = { binary, env: { PATH: process.env.PATH, HOME: work, RUST_LOG: "warn", RUST_BACKTRACE: "1" } };
   return runtime;
 }
 
@@ -170,7 +144,7 @@ export const handler = async (event) => {
       return json(413, {
         error: `The rendered PDF is ${(pdf.length / 1048576).toFixed(1)} MB, over the ${
           MAX_PDF_BYTES / 1048576
-        } MB limit. Split the document or reduce embedded fonts and images.`,
+        } MB limit. Split the document or reduce its images.`,
         log: trimmedLog,
         ms,
       });

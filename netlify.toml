@@ -1,7 +1,7 @@
 [build]
   publish = "public"
-  # helium-bin/ is built by GitHub Actions (scripts/build-helium.sh needs Docker) and deployed with
-  # the Netlify CLI, so Netlify's own build has nothing to compile.
+  # helium-bin/ is downloaded by scripts/fetch-helium.sh and deployed with the Netlify CLI (see
+  # .github/workflows/deploy.yml), so Netlify's own build has nothing to do.
   command = ""
 
 [functions]

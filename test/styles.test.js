@@ -30,13 +30,13 @@ test("css reflects the settings", () => {
   const settings = styles.defaults();
   settings.page.marginTop = 30;
   settings.page.pageNumbers = "right";
-  settings.body.font = "DejaVu Sans";
+  settings.body.font = "TeX Gyre Heros";
   settings.body.align = "justify";
   settings.links.underline = "no";
   const css = styles.buildCss(settings);
   assert.match(css, /@page \{ margin: 30mm 25mm 25mm 25mm;/);
   assert.match(css, /@bottom-right \{ content: counter\(page\)/);
-  assert.match(css, /body \{[^}]*font-family: "DejaVu Sans", sans-serif;/);
+  assert.match(css, /body \{[^}]*font-family: "TeX Gyre Heros", sans-serif;/);
   assert.match(css, /p, li, blockquote \{ text-align: justify; \}/);
   assert.match(css, /a \{[^}]*text-decoration: none/);
   assert.match(css, /strong, b \{ font-weight: bold; \}/);
@@ -44,9 +44,9 @@ test("css reflects the settings", () => {
 
 test("headings follow the body font unless one is chosen", () => {
   const settings = styles.defaults();
-  assert.match(styles.buildCss(settings), /h1, h2[^{]*\{ font-family: "STIX Two Text", serif;/);
-  settings.headings.font = "DejaVu Sans";
-  assert.match(styles.buildCss(settings), /h1, h2[^{]*\{ font-family: "DejaVu Sans", sans-serif;/);
+  assert.match(styles.buildCss(settings), /h1, h2[^{]*\{ font-family: "TeX Gyre Termes", serif;/);
+  settings.headings.font = "TeX Gyre Heros";
+  assert.match(styles.buildCss(settings), /h1, h2[^{]*\{ font-family: "TeX Gyre Heros", sans-serif;/);
 });
 
 test("no page number rule when switched off", () => {
@@ -66,7 +66,7 @@ test("the code font only offers monospaced fonts", () => {
   const code = styles.SECTIONS.find((section) => section.id === "code").controls.find((control) => control.key === "font");
   const mono = styles.FONTS.filter(([, kind]) => kind === "monospace").map(([family]) => family);
   assert.deepEqual(code.options.map(([family]) => family), mono);
-  assert.ok(mono.length >= 2);
+  assert.ok(mono.length >= 1);
 });
 
 test("every font ends its stack with a generic family", () => {
@@ -74,21 +74,5 @@ test("every font ends its stack with a generic family", () => {
     const settings = styles.defaults();
     settings.body.font = family;
     assert.ok(styles.buildCss(settings).includes(`font-family: "${family}", ${kind};`), family);
-  }
-});
-
-test("every font in the sidebar is bundled by a build script", () => {
-  const fs = require("node:fs");
-  const fonts = fs.readFileSync(__dirname + "/../scripts/fonts.py", "utf8");
-  const build = fs.readFileSync(__dirname + "/../scripts/build-helium.sh", "utf8");
-  // build-helium.sh bundles these (DejaVu through a brace expansion, STIX Two Text by file name)
-  const fromHeliumBuild = {
-    "STIX Two Text": build.includes("STIXTwoText-Regular"),
-    "DejaVu Serif": build.includes("DejaVu{Sans,Serif,SansMono}"),
-    "DejaVu Sans": build.includes("DejaVu{Sans,Serif,SansMono}"),
-    "DejaVu Sans Mono": build.includes("DejaVu{Sans,Serif,SansMono}"),
-  };
-  for (const [family] of styles.FONTS) {
-    assert.ok(fromHeliumBuild[family] || fonts.includes(`"${family}"`), `${family} is not bundled`);
   }
 });
