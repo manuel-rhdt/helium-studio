@@ -19,8 +19,10 @@ Markdown passes through.
 
 Helium is a single static (musl) executable with its fonts and the math fonts built in, so the function needs
 nothing but that file: no libraries, no font files, no container. `scripts/fetch-helium.sh` downloads the
-release pinned in the script and checks its SHA-256; the Netlify CLI then ships `helium-bin/` with the
-function (`included_files` in `netlify.toml`). To update helium, change `VERSION` and `SHA256` in the script.
+newest [release](https://github.com/manuel-rhdt/helium/releases) and checks its SHA-256 against the
+`.sha256` file published with it; the Netlify CLI then ships `helium-bin/` with the function
+(`included_files` in `netlify.toml`). To pin a release, run
+`HELIUM_VERSION=v0.1.2 scripts/fetch-helium.sh`.
 
 ## Fonts
 
@@ -55,8 +57,11 @@ npm ci && npm test                 # Node 22; needs helium-bin/ for the render t
 ## Deploying
 
 `.github/workflows/deploy.yml` runs on every push to `main` (or manually from the Actions tab): it fetches
-helium, runs the tests and deploys with the Netlify CLI. Set these repository secrets (Settings → Secrets and
-variables → Actions):
+helium, runs the tests and deploys with the Netlify CLI. It also runs once a day to follow helium: when the
+newest release is newer than the one the live site was built with — the deploy message records it — the tests
+run and the site is deployed again, otherwise the run stops after fetching. To roll back to an older helium,
+set `HELIUM_VERSION` in the workflow. Set these repository secrets (Settings → Secrets and variables →
+Actions):
 
 | Secret | Value |
 | --- | --- |

@@ -3,6 +3,10 @@ name: Test and deploy
 on:
   push:
     branches: [main]
+  # pick up new helium releases without a commit here: the daily run fetches the newest release and
+  # deploys only when the live site still runs an older one
+  schedule:
+    - cron: "23 4 * * *"
   workflow_dispatch:
 
 # never run two deploys at once; a newer push supersedes a queued one
@@ -29,16 +33,60 @@ jobs:
       - name: Fetch helium
         run: scripts/fetch-helium.sh
 
+      # A schedule run is only there to follow helium releases, so it is skipped when the live site
+      # already runs the version that was just fetched. The version in the deploy message is how
+      # the site reports what it was built with.
+      - name: Decide whether to deploy
+        id: deploy
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          version="$(cut -d' ' -f1 helium-bin/.version)"
+          echo "helium=$version" >> "$GITHUB_OUTPUT"
+          case "$EVENT" in
+            push|workflow_dispatch)
+              echo "run=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+            schedule) ;;
+            *)
+              # a pull request or any other event checks the build but never deploys it
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          live="$(
+            curl -fsS "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/deploys?per_page=1" \
+              -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" |
+              node -e 'let s = ""; process.stdin.on("data", (c) => (s += c)).on("end", () => {
+                try { const [deploy] = JSON.parse(s); console.log(deploy?.title ?? ""); } catch { console.log(""); }
+              })'
+          )" || live=""
+          echo "live deploy message: ${live:-<unknown>}"
+          if [[ "$live" == *"helium $version"* ]]; then
+            echo "the live site already runs helium $version"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "the live site runs an older helium, deploying $version"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Test
+        if: steps.deploy.outputs.run == 'true'
         run: |
           npm ci
           npm test
 
       - name: Deploy to Netlify
+        if: steps.deploy.outputs.run == 'true'
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          HELIUM: ${{ steps.deploy.outputs.helium }}
         run: >
           npx --yes netlify-cli@27.14.0 deploy --prod
           --dir=public --functions=netlify/functions
-          --message "${GITHUB_SHA::7} ${GITHUB_REF_NAME}"
+          --message "helium $HELIUM ${GITHUB_SHA::7} ${GITHUB_REF_NAME}"
