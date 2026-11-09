@@ -46,10 +46,18 @@ jobs:
           set -euo pipefail
           version="$(cut -d' ' -f1 helium-bin/.version)"
           echo "helium=$version" >> "$GITHUB_OUTPUT"
-          if [[ "$EVENT" != "schedule" ]]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          case "$EVENT" in
+            push|workflow_dispatch)
+              echo "run=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+            schedule) ;;
+            *)
+              # a pull request or any other event checks the build but never deploys it
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
           live="$(
             curl -fsS "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/deploys?per_page=1" \
               -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" |
