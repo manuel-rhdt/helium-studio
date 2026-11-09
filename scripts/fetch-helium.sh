@@ -4,16 +4,43 @@
 # The release is a single static (musl) executable with its fonts built in, so nothing else is
 # needed to run it on Netlify: no libraries, no fonts, no container.
 #
-# To update helium, set VERSION and SHA256 (the digest GitHub shows for the release asset).
+# The newest release is installed by default; set HELIUM_VERSION
+# (`HELIUM_VERSION=v0.1.2 scripts/fetch-helium.sh`) to pin one.
 set -euo pipefail
-
-VERSION="v0.1.1"
-SHA256="223b193e8e0d31d8ad8ac44a47dff5baf52964c87ddc8bc71d21962f163bded8"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/helium-bin"
+
+# The tag of the newest release. `releases/latest` redirects to it, so the tag is in the Location
+# header and no GitHub API call (rate limited without a token) is needed.
+latest_version() {
+  local location
+  location="$(curl -fsSI -o /dev/null -w '%{redirect_url}' \
+    "https://github.com/manuel-rhdt/helium/releases/latest")" || {
+    echo "could not resolve the latest helium release" >&2
+    return 1
+  }
+  if [[ ! "$location" =~ /tag/(v[^/]+)$ ]]; then
+    echo "unexpected redirect \"$location\" for the latest helium release" >&2
+    return 1
+  fi
+  echo "${BASH_REMATCH[1]}"
+}
+
+VERSION="${HELIUM_VERSION:-$(latest_version)}"
 NAME="helium-$VERSION-x86_64-unknown-linux-musl"
 URL="https://github.com/manuel-rhdt/helium/releases/download/$VERSION/$NAME.tar.gz"
+
+# The checksum published with the release. It catches a corrupt or truncated download (and a
+# resumed transfer that ended badly).
+if ! SHA256="$(curl -fsSL --max-time 60 "$URL.sha256" | cut -d' ' -f1)"; then
+  echo "could not download the checksum of $URL (is $VERSION a published release?)" >&2
+  exit 1
+fi
+if [[ ! "$SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "the checksum of $URL is malformed: \"$SHA256\"" >&2
+  exit 1
+fi
 
 if [[ -x "$OUT/helium" && "$(cat "$OUT/.version" 2>/dev/null)" == "$VERSION $SHA256" ]]; then
   echo "helium $VERSION is already in $OUT"
